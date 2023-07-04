@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Zomato Chronicles</title>
+   <style>
+    body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+    background-color: #f5f5f5;
+}
+
+h1 {
+    text-align: center;
+    margin-bottom: 20px;
+    color: #333;
+}
+
+h2 {
+    margin-top: 30px;
+    color: #666;
+}
+
+form {
+    margin-bottom: 10px;
+}
+
+input[type="text"],
+input[type="number"],
+select {
+    padding: 5px;
+}
+
+button {
+    padding: 5px 10px;
+    background-color: #4caf50;
+    color: white;
+    border: none;
+    cursor: pointer;
+}
+
+table {
+    border-collapse: collapse;
+    width: 100%;
+    background-color: #fff;
+    box-shadow: 0px 0px 5px rgba(0, 0, 0, 0.1);
+}
+
+th, td {
+    border: 1px solid #ddd;
+    padding: 8px;
+}
+
+th {
+    background-color: #f2f2f2;
+    text-align: left;
+    color: #666;
+}
+
+.inline-form {
+    display: inline;
+}
+
+.order-status-received {
+    background-color: #ffcc80;
+}
+
+.order-status-preparing {
+    background-color: #81d4fa;
+}
+
+.order-status-ready {
+    background-color: #c5e1a5;
+}
+
+.order-status-delivered {
+    background-color: #a5d6a7;
+}
+
+   </style>
+</head>
+<body>
+    <h1>Zomato Chronicles: The Great Food Fiasco</h1>
+
+    <h2>Menu Mastery</h2>
+    <form action="/add_dish" method="post">
+        <input type="text" name="dish_id" placeholder="Dish ID" required>
+        <input type="text" name="dish_name" placeholder="Dish Name" required>
+        <input type="number" name="price" step="0.01" placeholder="Price" required>
+        <select name="availability">
+            <option value="yes">Available</option>
+            <option value="no">Not Available</option>
+        </select>
+        <button type="submit">Add Dish</button>
+    </form>
+
+    <h2>Menu</h2>
+    <table>
+        <tr>
+            <th>Dish ID</th>
+            <th>Dish Name</th>
+            <th>Price</th>
+            <th>Availability</th>
+            <th>Action</th>
+        </tr>
+        {% for dish_id, dish in menu.items() %}
+      
+        <tr>
+            <td>{{ dish_id }}</td>
+            <td>{{ dish.dish_name }}</td>
+            <td>{{ dish.price }}</td>
+            <td>{{ "Available" if dish.availability else "Not Available" }}</td>
+            <td>
+                <form action="/remove_dish" method="post" class="inline-form">
+                    <input type="hidden" name="dish_id" value="{{ dish_id }}">
+                    <button type="submit">Remove</button>
+                </form>
+                <form action="/update_availability" method="post" class="inline-form">
+                    <input type="hidden" name="dish_id" value="{{ dish_id }}">
+                    <select name="availability" onchange="this.form.submit()">
+                        <option value="yes" {% if dish.availability %}selected{% endif %}>Available</option>
+                        <option value="no" {% if not dish.availability %}selected{% endif %}>Not Available</option>
+                    </select>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+
+    <h2>User Interaction Euphoria</h2>
+    <form action="/new_order" method="post">
+        <input type="text" name="customer_name" placeholder="Customer Name" required>
+        <select name="dish_ids" multiple required>
+            {% for dish_id, dish in menu.items() %}
+            <option value="{{ dish_id }}">{{ dish.dish_name }} - ${{ dish.price }}</option>
+            {% endfor %}
+        </select>
+        <button type="submit">Take Order</button>
+    </form>
+
+    <h2>Orders</h2>
+    <table>
+        <tr>
+            <th>Order ID</th>
+            <th>Customer Name</th>
+            <th>Dishes</th>
+            <th>Status</th>
+            <th>Action</th>
+        </tr>
+        {% for order_id, order in orders.items() %}
+        
+        <tr>
+            <td>{{ order_id }}</td>
+            <td>{{ order.customer_name }}</td>
+            <td>
+                <ul>
+                    {% for dish in order.dishes %}
+                    <li>{{ dish.dish_name }} - ${{ dish.price }}</li>
+                    {% endfor %}
+                </ul>
+            </td>
+            <td class="{% if order.status == 'received' %}order-status-received{% elif order.status == 'preparing' %}order-status-preparing{% elif order.status == 'ready for pickup' %}order-status-ready{% else %}order-status-delivered{% endif %}">{{ order.status }}</td>
+            <td  >
+                <form action="/update_status" method="post" class="inline-form">
+                    <input type="hidden" name="order_id" value="{{ order_id }}">
+                    <select name="status" onchange="this.form.submit()">
+                        <option value="received" {% if order.status == 'received' %}selected{% endif %}>Received</option>
+                        <option value="preparing" {% if order.status == 'preparing' %}selected{% endif %}>Preparing</option>
+                        <option value="ready for pickup" {% if order.status == 'ready for pickup' %}selected{% endif %}>Ready for Pickup</option>
+                        <option value="delivered" {% if order.status == 'delivered' %}selected{% endif %}>Delivered</option>
+                    </select>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>
