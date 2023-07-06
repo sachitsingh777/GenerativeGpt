@@ -10,7 +10,7 @@ import axios from "axios";
 
 const init = {
   role: "system",
-  content: "I am a Fitness Expert from WellFit",
+  content: "I am a Food Expert from zomato",
 };
 
 export const Chatbot = () => {

@@ -16,7 +16,7 @@ import {
 } from '@chakra-ui/react';
 import axios from 'axios';
 import { Chatbot } from '../component/Chatbot';
-/ Import the Chatbot component
+
 
 const Home = () => {
   const toast = useToast();
