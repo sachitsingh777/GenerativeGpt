@@ -15,6 +15,8 @@ import {
   useToast,
 } from '@chakra-ui/react';
 import axios from 'axios';
+import { Chatbot } from '../component/Chatbot';
+/ Import the Chatbot component
 
 const Home = () => {
   const toast = useToast();
@@ -41,7 +43,7 @@ const Home = () => {
       });
     }
   };
-console.log(menu)
+
   const handleAvailabilityToggle = async (dishId, availability) => {
     try {
       const response = await axios.post('http://localhost:5000/update_availability', {
@@ -112,7 +114,7 @@ console.log(menu)
           </Tr>
         </Thead>
         <Tbody>
-          {/* {menu?.filter((dish) => dish.dish_name.toLowerCase().includes(searchQuery.toLowerCase()))
+          {menu?.filter((dish) => dish.dish_name.toLowerCase().includes(searchQuery.toLowerCase()))
             .map((dish) => (
               <Tr key={dish.dish_id}>
                 <Td>{dish.dish_name}</Td>
@@ -124,7 +126,7 @@ console.log(menu)
                   />
                 </Td>
               </Tr>
-            ))} */}
+            ))}
         </Tbody>
       </Table>
 
@@ -148,8 +150,12 @@ console.log(menu)
         />
         <Button onClick={handleAddDish}>Add</Button>
       </FormControl>
+
+      {/* Chatbot */}
+      <Chatbot  position="fixed" top="20px" right="20px" />
     </Box>
   );
 };
 
 export default Home;
+
