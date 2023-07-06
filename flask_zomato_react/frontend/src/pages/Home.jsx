@@ -152,7 +152,7 @@ const Home = () => {
       </FormControl>
 
       {/* Chatbot */}
-      <Chatbot  position="fixed" top="20px" right="20px" />
+      <Link to="/chatbot"><Button position="fixed" top="50px" right="20px">ChatBot</Button></Link>
     </Box>
   );
 };
