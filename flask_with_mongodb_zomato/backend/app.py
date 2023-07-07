@@ -1,4 +1,3 @@
-import json
 import random
 import string
 import os
@@ -9,17 +8,18 @@ from dotenv import load_dotenv
 import os
 from flask import Flask, request, jsonify, abort, Response
 from flask_cors import CORS
-from pymongo import MongoClient 
+from pymongo import MongoClient
 from bson import json_util
+from flask_socketio import SocketIO, emit
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})  # Replace with allowed origins
+app.config['SECRET_KEY'] = 'secret_key'
+socketio = SocketIO(app)
 
-
-# # MongoDB configuration
+# MongoDB configuration
 client = MongoClient('mongodb+srv://sachitsingh:devimeera@cluster0.uxkhuc6.mongodb.net/restaurant_app?retryWrites=true&w=majority')
 db = client['restaurant_app']
-
 
 # Load menu data from MongoDB
 def load_menu():
@@ -27,13 +27,11 @@ def load_menu():
     menu = list(menu_collection.find())
     return menu
 
-
 # Save menu data to MongoDB
 def save_menu(menu):
     menu_collection = db["menu"]
     menu_collection.delete_many({})  # Clear existing menu
     menu_collection.insert_many(menu)
-
 
 # Load user data from MongoDB
 def load_users():
@@ -41,13 +39,11 @@ def load_users():
     users = list(users_collection.find())
     return users
 
-
 # Save user data to MongoDB
 def save_users(users):
     users_collection = db["users"]
     users_collection.delete_many({})  # Clear existing users
     users_collection.insert_many(users)
-
 
 # Load orders data from MongoDB
 def load_orders():
@@ -55,13 +51,11 @@ def load_orders():
     orders = list(orders_collection.find())
     return orders
 
-
 # Save orders data to MongoDB
 def save_orders(orders):
     orders_collection = db["orders"]
     orders_collection.delete_many({})  # Clear existing orders
     orders_collection.insert_many(orders)
-
 
 def validate_order(dish_ids):
     menu = load_menu()
@@ -74,6 +68,37 @@ def validate_order(dish_ids):
 
     return True
 
+def generate_response(data=None, message=None, error=None, status_code=200):
+    response = {'data': data, 'message': message, 'error': error}
+    return jsonify(response), status_code
+
+# Define socket events and handlers
+@socketio.on('connect')
+def handle_connect():
+    print('A client connected')
+
+@socketio.on('chat message')
+def handle_message(message):
+    print('Received message:', message)
+    # Broadcast the message to all connected clients
+    emit('chat message', message, broadcast=True)
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print('A client disconnected')
+
+def update_dish_stock(dish_ids):
+    menu = load_menu()
+
+    for dish_id in dish_ids:
+        dish = None
+        for menu_dish in menu:
+            if int(menu_dish['dish_id']) == dish_id:
+                dish = menu_dish
+                menu_dish["stock"] -= 1
+                print(dish)
+
+    save_menu(menu)
 
 def generate_order_id():
     orders = load_orders()
@@ -85,26 +110,6 @@ def generate_order_id():
     new_order_id = max_order_id + 1
     return new_order_id
 
-
-def update_dish_stock(dish_ids):
-    menu = load_menu()
-
-    for dish_id in dish_ids:
-        dish = None
-        for menu_dish in menu:
-            if int(menu_dish['dish_id']) == dish_id:
-                dish = menu_dish
-                menu_dish["stock"] -=1
-                print(dish)
-    
-    
-
-    save_menu(menu)
- 
-def generate_response(data=None, message=None, error=None, status_code=200):
-    response = {'data': data, 'message': message, 'error': error}
-    return jsonify(response), status_code
-
 @app.route('/menu')
 def display_menu():
     # Retrieve the menu data
@@ -113,7 +118,6 @@ def display_menu():
     menu_dict = json.loads(menu_json)
     # Return the menu data as JSON response
     return generate_response(data={'menu': menu_dict})
-
 
 @app.route('/add-dish', methods=['POST'])
 def add_dish():
@@ -144,7 +148,6 @@ def add_dish():
     save_menu(menu)
     return jsonify({'message': 'Dish added successfully'})
 
-
 @app.route('/take-order', methods=['POST'])
 def take_order():
     menu = load_menu()
@@ -173,7 +176,6 @@ def take_order():
         'dish_ids': dish_ids,
         'status': 'received'
     }
-    print(new_order)
 
     orders.append(new_order)
 
@@ -183,9 +185,7 @@ def take_order():
     # Update the dish stock
     update_dish_stock(dish_ids)
 
-
     return jsonify({'message': 'Order placed successfully'})
-
 
 @app.route('/review-orders')
 def review_orders():
@@ -206,15 +206,11 @@ def review_orders():
                     break
         order['total_price'] = price
         order['name'] = name
-        print(orders)
 
     # Return the orders data as JSON response
     order_json = json.dumps(orders, default=str)
     order_dict = json.loads(order_json)
     return generate_response(data={'orders': order_dict})
-
-
-
 
 @app.route('/delete-dish/<dish_id>', methods=['DELETE'])
 def delete_dish(dish_id):
@@ -233,7 +229,6 @@ def delete_dish(dish_id):
 
     return jsonify({'message': 'Dish deleted successfully'})
 
-
 @app.route('/order/update-status', methods=['POST'])
 def update_status():
     data = request.get_json()
@@ -244,7 +239,6 @@ def update_status():
         return jsonify({'message': 'Order status updated successfully'})
 
     return jsonify({'error': 'Invalid Order Id'}), 400
-
 
 def update_order_status(order_id, status):
     orders = load_orders()
@@ -257,10 +251,6 @@ def update_order_status(order_id, status):
             save_orders(orders)
 
             return True
-
-    return False
-
-
 @app.route('/update-dish/<int:dish_id>', methods=['PATCH'])
 def update_dish(dish_id):
     # Retrieve the menu data
@@ -268,7 +258,6 @@ def update_dish(dish_id):
 
     # Find the dish with the given dish_id
     for dish in menu:
-
         if dish['dish_id'] == dish_id:
             # Update the dish properties
             updated_data = request.get_json()
@@ -285,12 +274,10 @@ def update_dish(dish_id):
 
     return jsonify({'message': 'Dish updated successfully'})
 
-
 # Generate a random alphanumeric string for user IDs
 def generate_user_id(length=6):
     characters = string.ascii_letters + string.digits
     return ''.join(random.choice(characters) for _ in range(length))
-
 
 @app.route('/signup', methods=['POST'])
 def signup():
@@ -321,7 +308,6 @@ def signup():
 
     return jsonify({'message': 'Signup successful'})
 
-
 @app.route('/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -337,12 +323,10 @@ def login():
         return jsonify({'error': 'Incorrect email or password'}), 401
 
     # Perform login logic here
-    print(user)
-    return jsonify({'message': 'Login successful', 'user':{"username":user["username"], "role":user["role"]}})
 
+    return jsonify({'message': 'Login successful', 'user': {"username": user["username"], "role": user["role"]}})
 
 feedbacks_collection = db['feedbacks']
-
 
 @app.route('/feedback', methods=['POST'])
 def submit_feedback():
@@ -356,13 +340,11 @@ def submit_feedback():
 
     return jsonify({'success': True, 'message': 'Feedback submitted successfully!'})
 
-
 @app.route('/api/feedbacks', methods=['GET'])
 def get_feedbacks():
     # Retrieve all feedbacks from MongoDB
     feedbacks = list(feedbacks_collection.find())
     return jsonify({'feedbacks': feedbacks})
 
-
 if __name__ == "__main__":
-    app.run()
+    socketio.run(app)
