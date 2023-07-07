@@ -174,13 +174,14 @@ function Menu() {
     >
       {loginUser ? (
         <>
-          <Text fontSize="2xl" color="white" fontWeight="bold" mb={2}>Get ready to satisfy your cravings, {loginUser.username}!</Text>
-          <Text fontSize="lg" color="white">Welcome to Being Foody. Indulge in our mouthwatering menu.</Text>
+          <Text fontSize="2xl" color="white" fontWeight="bold" mb={2}>"Welcome to a food lover's paradise,, {loginUser.username}!</Text>
+          <Text fontSize="lg" color="white"> where each dish is a story waiting to be savored..</Text>
         </>
       ) : (
         <>
-          <Text fontSize="2xl" color="white" fontWeight="bold" mb={2}>Ready to embark on a culinary adventure?</Text>
-          <Text fontSize="lg" color="white">Please login to explore our mouthwatering menu!</Text>
+          <Text fontSize="2xl" color="white" fontWeight="bold" mb={2}>Indulgence awaits behind the login.</Text>
+          <Text fontSize="lg" color="white"> Join us in experiencing a menu crafted with passion,</Text>
+          <Text fontSize="lg" color="white"> imagination, and a sprinkle of culinary magic.</Text>
         </>
       )}
     </Text>
