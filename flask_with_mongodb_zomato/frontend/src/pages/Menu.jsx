@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   Box,
-  Heading,
-  Input,
-  Button,
-  FormControl,
-  FormLabel,
-  Select,
-  FormHelperText,
   Image,
+  Text,
+  VStack,
+  Grid,
+  Button,
+  Spacer,
+  HStack,
+  useToast,
   Modal,
   ModalOverlay,
   ModalContent,
@@ -16,202 +16,332 @@ import {
   ModalCloseButton,
   ModalBody,
   ModalFooter,
-  useDisclosure,
+  FormControl,
+  FormLabel,
+  Input,
+  NumberInput,
+  NumberInputField,
 } from '@chakra-ui/react';
-import { Link } from 'react-router-dom';
+import { DeleteIcon, EditIcon, AddIcon } from '@chakra-ui/icons';
+import { Chatbot } from '../component/Chatbot';
 
-
-
-const Menu = () => {
+const loginUser = JSON.parse(localStorage.getItem("user"))
+function Menu() {
   const [menu, setMenu] = useState([]);
-  const [dishId, setDishId] = useState('');
-  const [dishName, setDishName] = useState('');
-  const [price, setPrice] = useState('');
-  const [availability, setAvailability] = useState('');
-  const [image, setImage] = useState(null);
-
-  const { isOpen, onOpen, onClose } = useDisclosure();
-
+  const [userRole, setUserRole] = useState('');
+  const [editModalOpen, setEditModalOpen] = useState(false);
+  const [addModalOpen, setAddModalOpen] = useState(false);
+  const [selectedDish, setSelectedDish] = useState(null);
+  const [editedDishName, setEditedDishName] = useState('');
+  const [editedDishPrice, setEditedDishPrice] = useState(0);
+  const [editedDishStock, setEditedDishStock] = useState(0);
+  const [newDishName, setNewDishName] = useState('');
+  const [newDishPrice, setNewDishPrice] = useState(0);
+  const [newDishStock, setNewDishStock] = useState(0);
+  const [newDishImage, setNewDishImage] = useState('');
+  const [newDishId, setNewDishId] = useState(0);
+  const toast = useToast();
+  console.log(loginUser)
   useEffect(() => {
-    fetchMenuData();
+    fetchMenu();
+    loginUser ? setUserRole(loginUser.role):setUserRole("")
   }, []);
 
-  const fetchMenuData = async () => {
+  async function fetchMenu() {
     try {
       const response = await fetch('http://localhost:5000/menu');
-      const menuData = await response.json();
-      setMenu(menuData);
+      const data = await response.json();
+      setMenu(data.data.menu);
     } catch (error) {
-      console.log('Error fetching menu data:', error);
+      console.log(error);
     }
-  };
+  }
 
-  const handleInputChange = (event) => {
-    const { name, value } = event.target;
-    if (name === 'dishId') {
-      setDishId(value);
-    } else if (name === 'dishName') {
-      setDishName(value);
-    } else if (name === 'price') {
-      setPrice(value);
-    } else if (name === 'availability') {
-      setAvailability(value);
-    }
-  };
-
-  const handleImageChange = (event) => {
-    setImage(event.target.value);
-  };
-
-  const addDish = async (event) => {
-    event.preventDefault();
-
-    const formData = new FormData();
-    formData.append('dish_id', dishId);
-    formData.append('dish_name', dishName);
-    formData.append('price', price);
-    formData.append('availability', availability);
-    formData.append('image', image);
-
+  async function deleteDish(dishId) {
     try {
-      const response = await fetch('http://localhost:5000/add_dish', {
-        method: 'POST',
-        body: formData,
+      const response = await fetch(`http://localhost:5000/delete-dish/${dishId}`, { method: 'DELETE' });
+      const data = await response.json();
+      console.log(data.message);
+      fetchMenu(); // Refresh the menu after deleting the dish
+      toast({
+        title: 'Dish Deleted',
+        description: 'The dish has been successfully deleted.',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
       });
-      const menuData = await response.json();
-      setMenu(menuData);
-      // Reset form fields
-      setDishId('');
-      setDishName('');
-      setPrice('');
-      setAvailability('');
-      setImage(null);
-      onClose(); // Close the modal after adding the dish
     } catch (error) {
-      console.log('Error adding dish:', error);
+      console.log(error);
     }
-  };
+  }
 
-  const removeDish = async (dishId) => {
+  function openEditModal(dish) {
+    setSelectedDish(dish);
+    setEditedDishName(dish.dish_name);
+    setEditedDishPrice(dish.price);
+    setEditedDishStock(dish.stock);
+    setEditModalOpen(true);
+  }
+
+  function closeEditModal() {
+    setSelectedDish(null);
+    setEditedDishName('');
+    setEditedDishPrice(0);
+    setEditedDishStock(0);
+    setEditModalOpen(false);
+  }
+
+  async function saveEditedDish() {
     try {
-      const response = await fetch('http://localhost:5000/remove_dish', {
+      const response = await fetch(`http://localhost:5000/update-dish/${selectedDish.dish_id}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          dish_name: editedDishName,
+          price: editedDishPrice,
+          stock: +editedDishStock,
+        }),
+      });
+      const data = await response.json();
+      console.log(data.message);
+      fetchMenu(); // Refresh the menu after editing the dish
+      toast({
+        title: 'Dish Updated',
+        description: 'The dish has been successfully updated.',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      closeEditModal();
+    } catch (error) {
+      console.log(error);
+    }
+  }
+
+  async function addDish() {
+    try {
+      const response = await fetch('http://localhost:5000/add-dish', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ dish_id: dishId }),
+        body: JSON.stringify({
+          dish_id: +newDishId,
+          dish_name: newDishName,
+          price: newDishPrice,
+          stock: newDishStock,
+          dish_image: newDishImage,
+        }),
       });
-      const menuData = await response.json();
-      setMenu(menuData);
+      const data = await response.json();
+      console.log(data.message);
+      fetchMenu(); // Refresh the menu after adding the dish
+      toast({
+        title: 'Dish Added',
+        description: 'The dish has been successfully added.',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+      closeAddModal();
     } catch (error) {
-      console.log('Error removing dish:', error);
+      console.log(error);
     }
-  };
+  }
+
+  function openAddModal() {
+    setNewDishName('');
+    setNewDishPrice(0);
+    setNewDishStock(0);
+    setNewDishImage('');
+    setAddModalOpen(true);
+  }
+
+  function closeAddModal() {
+    setAddModalOpen(false);
+  }
 
   return (
-    <Box p={4}>
-      <Heading as="h2" size="xl" mb={4}>
-        Menu
-      </Heading>
-    
-      <Button onClick={onOpen} colorScheme="blue" mb={4}>
-        Add Dish
-      </Button>
-      <Link to="/chatbot"><Button position="fixed" top="50px" right="20px">ChatBot</Button></Link>
-        
-      <Modal isOpen={isOpen} onClose={onClose}>
+    <Box bg="#3D3B3B" h="100vh" p="5">
+    <Box w="80%" mx="auto"  mt={"30px"}>
+           <Text
+      textAlign="left"
+      fontSize="xl"
+      fontWeight="bold"
+      mb={4}
+    >
+      {loginUser ? (
+        <>
+          <Text fontSize="2xl" color="white" fontWeight="bold" mb={2}>Get ready to satisfy your cravings, {loginUser.username}!</Text>
+          <Text fontSize="lg" color="white">Welcome to Being Foody. Indulge in our mouthwatering menu.</Text>
+        </>
+      ) : (
+        <>
+          <Text fontSize="2xl" color="white" fontWeight="bold" mb={2}>Ready to embark on a culinary adventure?</Text>
+          <Text fontSize="lg" color="white">Please login to explore our mouthwatering menu!</Text>
+        </>
+      )}
+    </Text>
+      <Grid
+        templateColumns={{ base: 'repeat(1, 1fr)', md: 'repeat(2, 1fr)', lg: 'repeat(4, 1fr)' }}
+        gap={4}
+        justifyContent="center"
+      >
+        {menu.map((dish) => (
+          <Box
+            key={dish.dish_id}
+            borderWidth="1px"
+            borderRadius="md"
+            bg="whiteAlpha.300"
+            p={4}
+            transition="transform 0.3s"
+            _hover={{ transform: 'scale(1.05)' }}
+            cursor="pointer"
+            boxShadow="lg"
+            overflow="hidden"
+            position="relative"
+          >
+            <Image src={dish.dish_image} alt={dish.dish_name} h={200} objectFit="cover" mb={4} />
+            <Text fontWeight="bold" fontSize="xl" whiteSpace="nowrap" overflow="hidden" textOverflow="ellipsis">
+              {dish.dish_name}
+            </Text>
+            <Text>₹{dish.price}/-</Text>
+            <Text>{dish.stock >= 1  ? 'In Stock' : 'Out of Stock'}</Text>
+
+            {userRole === 'admin' && (
+              <HStack mt={4} spacing={2}>
+                <Text>{dish.stock} in Stock</Text>
+                <Button
+                  colorScheme="red"
+                  leftIcon={<DeleteIcon />}
+                  onClick={() => deleteDish(dish.dish_id)}
+                ></Button>
+                <Button colorScheme="teal" leftIcon={<EditIcon />} onClick={() => openEditModal(dish)}></Button>
+              </HStack>
+            )}
+          </Box>
+        ))}
+        <Box>
+          
+        </Box>
+      </Grid>
+
+      {/* Edit Modal */}
+      {selectedDish && (
+        <Modal isOpen={editModalOpen} onClose={closeEditModal}>
+          <ModalOverlay />
+          <ModalContent>
+            <ModalHeader>Edit Dish</ModalHeader>
+            <ModalCloseButton />
+            <ModalBody>
+              <FormControl>
+                <FormLabel>Dish Name</FormLabel>
+                <Input value={editedDishName} onChange={(e) => setEditedDishName(e.target.value)} />
+              </FormControl>
+              <FormControl mt={4}>
+                <FormLabel>Price</FormLabel>
+                <NumberInput value={editedDishPrice} onChange={(value) => setEditedDishPrice(value)} step={0.01}>
+                  <NumberInputField />
+                </NumberInput>
+              </FormControl>
+              <FormControl mt={4}>
+                <FormLabel>Stock</FormLabel>
+                <NumberInput value={editedDishStock} onChange={(value) => setEditedDishStock(value)} step={1}>
+                  <NumberInputField />
+                </NumberInput>
+              </FormControl>
+            </ModalBody>
+            <ModalFooter>
+              <Button colorScheme="blue" mr={3} onClick={saveEditedDish}>
+                Save
+              </Button>
+              <Button variant="ghost" onClick={closeEditModal}>
+                Cancel
+              </Button>
+            </ModalFooter>
+          </ModalContent>
+        </Modal>
+      )}
+
+      {/* Add Modal */}
+      <Modal isOpen={addModalOpen} onClose={closeAddModal}>
         <ModalOverlay />
         <ModalContent>
           <ModalHeader>Add Dish</ModalHeader>
           <ModalCloseButton />
-          <form onSubmit={addDish}>
-            <ModalBody>
-              <FormControl mb={4}>
-                <FormLabel>Dish ID</FormLabel>
-                <Input
-                  type="text"
-                  name="dishId"
-                  value={dishId}
-                  onChange={handleInputChange}
-                  placeholder="Dish ID"
-                />
-              </FormControl>
-
-              <FormControl mb={4}>
-                <FormLabel>Dish Name</FormLabel>
-                <Input
-                  type="text"
-                  name="dishName"
-                  value={dishName}
-                  onChange={handleInputChange}
-                  placeholder="Dish Name"
-                />
-              </FormControl>
-
-              <FormControl mb={4}>
-                <FormLabel>Price</FormLabel>
-                <Input
-                  type="text"
-                  name="price"
-                  value={price}
-                  onChange={handleInputChange}
-                  placeholder="Price"
-                />
-              </FormControl>
-
-              <FormControl mb={4}>
-                <FormLabel>Availability</FormLabel>
-                <Select
-                  name="availability"
-                  value={availability}
-                  onChange={handleInputChange}
-                  placeholder="Select availability"
-                >
-                  <option value="yes">Yes</option>
-                  <option value="no">No</option>
-                </Select>
-                <FormHelperText>
-                  Select the availability of the dish
-                </FormHelperText>
-              </FormControl>
-
-              <FormControl mb={4}>
-                <FormLabel>Image</FormLabel>
-                <Input
-                  type="text"
-                  name="image"
-                  value={image}
-                  onChange={handleImageChange}
-                />
-              </FormControl>
-            </ModalBody>
-
-            <ModalFooter>
-              <Button type="submit" colorScheme="blue" mr={3}>
-                Add Dish
-              </Button>
-              <Button onClick={onClose}>Cancel</Button>
-            </ModalFooter>
-          </form>
+          <ModalBody>
+            <FormControl mt={4}>
+              <FormLabel>Dish Id</FormLabel>
+              <NumberInput value={newDishId} onChange={(value) => setNewDishId(value)} step={1}>
+                <NumberInputField />
+              </NumberInput>
+            </FormControl>
+            <FormControl>
+              <FormLabel>Dish Name</FormLabel>
+              <Input value={newDishName} onChange={(e) => setNewDishName(e.target.value)} />
+            </FormControl>
+            <FormControl mt={4}>
+              <FormLabel>Image</FormLabel>
+              <Input value={newDishImage} onChange={(e) => setNewDishImage(e.target.value)}></Input>
+            </FormControl>
+            <FormControl mt={4}>
+              <FormLabel>Price</FormLabel>
+              <NumberInput value={newDishPrice} onChange={(value) => setNewDishPrice(value)} step={0.01}>
+                <NumberInputField />
+              </NumberInput>
+            </FormControl>
+            <FormControl mt={4}>
+              <FormLabel>Stock</FormLabel>
+              <NumberInput value={newDishStock} onChange={(value) => setNewDishStock(value)} step={1}>
+                <NumberInputField />
+              </NumberInput>
+            </FormControl>
+          </ModalBody>
+          <ModalFooter>
+            <Button colorScheme="blue" mr={3} onClick={addDish}>
+              Add
+            </Button>
+            <Button variant="ghost" onClick={closeAddModal}>
+              Cancel
+            </Button>
+          </ModalFooter>
         </ModalContent>
       </Modal>
+      <Box
+        position="fixed"
+        left={0}
+        bottom={0}
+        width="300px"
+        backgroundColor="transparent"
+        padding={4}
+        boxShadow="lg"
+      >
+        <Chatbot/>
+      </Box>
 
-      {menu.map((dish) => (
-        <Box key={dish._id} border="1px" p={4} mt={4}>
-          <p>{dish.dish_name}</p>
-          <p>{dish.price}</p>
-          <p>{dish.availability ? 'Available' : 'Not Available'}</p>
-          {dish.image && <Image src={dish.image} alt={dish.dish_name} />}
-          <Button onClick={() => removeDish(dish._id)} colorScheme="red" mt={4}>
-            Remove
-          </Button>
-        </Box>
-      ))}
 
-      {/* Add the Chatbot component */}
-     
+
+
+      {/* Add Dish Button */}
+      {userRole === 'admin' && (
+        <Button
+          colorScheme="teal"
+          size="lg"
+          position="fixed"
+          right="2rem"
+          bottom="2rem"
+          zIndex="10"
+          onClick={openAddModal}
+        >
+          <AddIcon mr={2} /> Add Dish
+        </Button>
+      )}
+
+    </Box>
     </Box>
   );
-};
+}
 
 export default Menu;

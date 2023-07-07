@@ -13,7 +13,7 @@ const Navbar = ({ isLoggedIn, username, onLogout }) => {
   const { isOpen, onToggle } = useDisclosure();
 
   return (
-    <Box bg="teal.500" px={4} py={2}>
+    <Box  bg="#7A1B1B"  px={4} py={2}>
       <Flex alignItems="center">
         <Link to="/">
           <Text color="white" fontWeight="bold" fontSize="xl">
@@ -30,6 +30,11 @@ const Navbar = ({ isLoggedIn, username, onLogout }) => {
           <Link to="/order">
             <Text color="white" mx={2}>
               Order
+            </Text>
+          </Link>
+          <Link to="/orderdetails">
+            <Text color="white" mx={2}>
+              Order Details
             </Text>
           </Link>
           <Flex justifyContent="flex-end" mt={2}>

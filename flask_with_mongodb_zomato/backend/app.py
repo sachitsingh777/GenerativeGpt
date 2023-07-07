@@ -1,275 +1,368 @@
-from flask import Flask, render_template, request, session, jsonify
 import json
-from flask_cors import CORS
-from pymongo import MongoClient
-
+import random
+import string
 import os
-app = Flask(__name__)
-CORS(app)
-CORS(app, resources={r"/*": {"origins": "*"}})
-app.secret_key = 'your_secret_key'
+import json
+import random
+import string
+from dotenv import load_dotenv
+import os
+from flask import Flask, request, jsonify, abort, Response
+from flask_cors import CORS
+from pymongo import MongoClient 
+from bson import json_util
 
-# Connect to MongoDB
+app = Flask(__name__)
+CORS(app, resources={r"/*": {"origins": "*"}})  # Replace with allowed origins
+
+
+# # MongoDB configuration
 client = MongoClient('mongodb+srv://sachitsingh:devimeera@cluster0.uxkhuc6.mongodb.net/restaurant_app?retryWrites=true&w=majority')
 db = client['restaurant_app']
 
-# Initialize menu and orders
-order_count = 0
 
 # Load menu data from MongoDB
-menu_collection = db['menu']
-menu = {}
-for doc in menu_collection.find():
-    menu[doc['_id']] = doc
+def load_menu():
+    menu_collection = db["menu"]
+    menu = list(menu_collection.find())
+    return menu
+
+
+# Save menu data to MongoDB
+def save_menu(menu):
+    menu_collection = db["menu"]
+    menu_collection.delete_many({})  # Clear existing menu
+    menu_collection.insert_many(menu)
+
+
+# Load user data from MongoDB
+def load_users():
+    users_collection = db["users"]
+    users = list(users_collection.find())
+    return users
+
+
+# Save user data to MongoDB
+def save_users(users):
+    users_collection = db["users"]
+    users_collection.delete_many({})  # Clear existing users
+    users_collection.insert_many(users)
+
 
 # Load orders data from MongoDB
-orders_collection = db['orders']
-orders = {}
-for doc in orders_collection.find():
-    orders[doc['_id']] = doc
-    order_count = max(order_count, doc['_id'])
-
-# Load user data from MongoDB
-users_collection = db['users']
-users = {}
-for doc in users_collection.find():
-    users[doc['_id']] = doc
-
-# Configure image uploads
+def load_orders():
+    orders_collection = db["orders"]
+    orders = list(orders_collection.find())
+    return orders
 
 
-
-@app.route("/")
-def home():
-    return "Welcome to the restaurant app"
-
-
-@app.route("/menu")
-def get_menu():
-    menu_data = []
-    for dish in menu.values():
-        dish_data = {
-            "_id": dish["_id"],
-            "dish_name": dish["dish_name"],
-            "price": dish["price"],
-            "availability": dish["availability"],
-            "stock": dish["stock"],
-            "image":dish["image"]  # Generate the image URL
-        }
-        menu_data.append(dish_data)
-
-    return jsonify(menu_data)
+# Save orders data to MongoDB
+def save_orders(orders):
+    orders_collection = db["orders"]
+    orders_collection.delete_many({})  # Clear existing orders
+    orders_collection.insert_many(orders)
 
 
-@app.route("/orders")
-def get_orders():
-    return jsonify(list(orders.values()))
+def validate_order(dish_ids):
+    menu = load_menu()
 
-
-@app.route("/add_dish", methods=["POST"])
-def add_dish():
-    dish_data = request.form
-    dish_id = dish_data.get("dish_id")
-    dish_name = dish_data.get("dish_name")
-    price = dish_data.get("price")
-    availability = dish_data.get("availability")
-    image = request.files["image"]
-
-  
-
-    menu_collection.update_one(
-        {"_id": dish_id},
-        {"$set": {
-            "dish_name": dish_name,
-            "price": float(price),
-            "availability": availability == "yes",
-            "stock": 0,
-            "image":image  # Save the filename in the database
-        }},
-        upsert=True
-    )
-
-    menu[dish_id] = {
-        "_id": dish_id,
-        "dish_name": dish_name,
-        "price": float(price),
-        "availability": availability == "yes",
-        "stock": 0,
-        "image": image  # Include the image filename in the menu data
-    }
-
-    return jsonify(menu)
-
-
-@app.route("/remove_dish", methods=["POST"])
-def remove_dish():
-    dish_id = request.json.get("dish_id")
-    if dish_id in menu:
-        menu_collection.delete_one({"__id": dish_id})
-        del menu[dish_id]
-        return jsonify({"message": "Dish removed successfully"})
-    else:
-        return jsonify({"error": "Dish not found"})
-
-
-@app.route("/update_availability", methods=["POST"])
-def update_availability():
-    dish_id = request.json.get("dish_id")
-    availability = request.json.get("availability")
-
-    if dish_id in menu:
-        menu_collection.update_one(
-            {"_id": dish_id},
-            {"$set": {
-                "availability": availability == "yes",
-                "stock": 1 if availability == "yes" else 0
-            }}
-        )
-
-        menu[dish_id]["availability"] = availability == "yes"
-        menu[dish_id]["stock"] = 1 if availability == "yes" else 0
-
-    return jsonify(menu)
-
-
-@app.route("/new_order", methods=["POST"])
-def new_order():
-    customer_name = request.json.get("customer_name")
-    dish_ids = request.json.get("dish_ids")
-
-    order_dishes = []
     for dish_id in dish_ids:
-        if dish_id in menu and menu[dish_id]["availability"] and menu[dish_id]["stock"] > 0:
-            order_dishes.append({
-                "dish_name": menu[dish_id]["dish_name"],
-                "price": menu[dish_id]["price"]
-            })
+        dish = next((dish for dish in menu if dish['dish_id'] == dish_id), None)
+        if dish is None or dish['stock'] == 0:
+            print(f"Invalid or unavailable dish: {dish_id}")
+            return False
 
-            # Decrease stock by 1
-            menu_collection.update_one(
-                {"_id": dish_id},
-                {"$inc": {"stock": -1}}
-            )
-            menu[dish_id]["stock"] -= 1
-
-    if len(order_dishes) > 0:
-        order_count += 1
-        orders_collection.insert_one({
-            "_id": order_count,
-            "customer_name": customer_name,
-            "dishes": order_dishes,
-            "status": "received"
-        })
-
-    return jsonify(orders)
+    return True
 
 
-@app.route("/update_status", methods=["POST"])
+def generate_order_id():
+    orders = load_orders()
+    # Find the maximum order ID in the existing orders
+    order_ids = [order['order_id'] for order in orders]
+    max_order_id = max(order_ids) if order_ids else 0
+
+    # Generate a new order ID by incrementing the maximum order ID
+    new_order_id = max_order_id + 1
+    return new_order_id
+
+
+def update_dish_stock(dish_ids):
+    menu = load_menu()
+
+    for dish_id in dish_ids:
+        dish = None
+        for menu_dish in menu:
+            if int(menu_dish['dish_id']) == dish_id:
+                dish = menu_dish
+                menu_dish["stock"] -=1
+                print(dish)
+    
+    
+
+    save_menu(menu)
+ 
+def generate_response(data=None, message=None, error=None, status_code=200):
+    response = {'data': data, 'message': message, 'error': error}
+    return jsonify(response), status_code
+
+@app.route('/menu')
+def display_menu():
+    # Retrieve the menu data
+    menu = load_menu()
+    menu_json = json.dumps(menu, default=json_util.default)
+    menu_dict = json.loads(menu_json)
+    # Return the menu data as JSON response
+    return generate_response(data={'menu': menu_dict})
+
+
+@app.route('/add-dish', methods=['POST'])
+def add_dish():
+    menu = load_menu()
+    data = request.get_json()
+
+    availability = "YES"
+    if int(data["stock"]) <= 0:
+        availability = "NO"
+
+    dish_id = data["dish_id"]
+    dish_name = data["dish_name"]
+    dish_image = data["dish_image"]
+    price = data["price"]
+    stock = data["stock"]
+    availability = availability
+
+    menu.append({
+        'dish_id': dish_id,
+        'dish_name': dish_name,
+        'price': price,
+        'stock': stock,
+        "availability": availability,
+        "dish_image": dish_image
+    })
+
+    # Save the updated menu data to MongoDB
+    save_menu(menu)
+    return jsonify({'message': 'Dish added successfully'})
+
+
+@app.route('/take-order', methods=['POST'])
+def take_order():
+    menu = load_menu()
+    orders = load_orders()
+    data = request.get_json()
+
+    customer_name = data['customer_name']
+    dish_ids = data['dish_ids']
+
+    if not customer_name or not dish_ids:
+        return jsonify({'error': 'Incomplete order information'}), 400
+
+    # Validate the order
+    for dish_id in dish_ids:
+        dish = next((dish for dish in menu if dish['dish_id'] == int(dish_id)), None)
+        if dish is None or dish['stock'] == 0:
+            return jsonify({'error': f"Invalid or unavailable dish in the order: {dish_id}"}), 400
+
+    # Generate a new order ID
+    order_id = generate_order_id()
+
+    # Update the orders list
+    new_order = {
+        'order_id': order_id,
+        'customer_name': customer_name,
+        'dish_ids': dish_ids,
+        'status': 'received'
+    }
+    print(new_order)
+
+    orders.append(new_order)
+
+    # Save the orders data to MongoDB
+    save_orders(orders)
+
+    # Update the dish stock
+    update_dish_stock(dish_ids)
+
+
+    return jsonify({'message': 'Order placed successfully'})
+
+
+@app.route('/review-orders')
+def review_orders():
+    # Retrieve the orders data
+    orders = load_orders()
+    menu = load_menu()
+
+    # Update each order with dish names and prices
+    for order in orders:
+        name = []
+        price = 0
+        dish_ids = order['dish_ids']
+        for dish_id in dish_ids:
+            for item in menu:
+                if dish_id == item["dish_id"]:
+                    name.append(item["dish_name"])
+                    price += float(item["price"])
+                    break
+        order['total_price'] = price
+        order['name'] = name
+        print(orders)
+
+    # Return the orders data as JSON response
+    order_json = json.dumps(orders, default=str)
+    order_dict = json.loads(order_json)
+    return generate_response(data={'orders': order_dict})
+
+
+
+
+@app.route('/delete-dish/<dish_id>', methods=['DELETE'])
+def delete_dish(dish_id):
+    menu = load_menu()
+
+    # Find the dish to delete
+    dish = next((dish for dish in menu if dish['dish_id'] == int(dish_id)), None)
+    if dish is None:
+        return jsonify({'error': 'Dish not found'}), 400
+
+    # Remove the dish from the menu
+    menu.remove(dish)
+
+    # Save the updated menu data to MongoDB
+    save_menu(menu)
+
+    return jsonify({'message': 'Dish deleted successfully'})
+
+
+@app.route('/order/update-status', methods=['POST'])
 def update_status():
-    order_id = int(request.json.get("order_id"))
-    status = request.json.get("status")
+    data = request.get_json()
+    order_id = data['order_id']
+    status = data['status']
 
-    if order_id in orders:
-        orders_collection.update_one(
-            {"_id": order_id},
-            {"$set": {"status": status}}
-        )
+    if update_order_status(order_id, status):
+        return jsonify({'message': 'Order status updated successfully'})
 
-        orders[order_id]["status"] = status
-
-    return jsonify(orders)
+    return jsonify({'error': 'Invalid Order Id'}), 400
 
 
-# Load user data from MongoDB
-users_collection = db['users']
-users = {}
-for doc in users_collection.find():
-    users[doc['_id']] = doc
+def update_order_status(order_id, status):
+    orders = load_orders()
+
+    for order in orders:
+        if order['order_id'] == order_id:
+            order['status'] = status
+
+            # Save updated orders data to MongoDB
+            save_orders(orders)
+
+            return True
+
+    return False
 
 
-# Login route
-@app.route('/login', methods=['POST'])
-def login():
-    login_identifier = request.json.get('login_identifier')
-    password = request.json.get('password')
+@app.route('/update-dish/<int:dish_id>', methods=['PATCH'])
+def update_dish(dish_id):
+    # Retrieve the menu data
+    menu = load_menu()
 
-    # Check if login_identifier is email or username
-    user = None
-    if '@' in login_identifier:
-        # Login with email
-        user = find_user_by_email(login_identifier)
-    else:
-        # Login with username
-        user = find_user_by_username(login_identifier)
+    # Find the dish with the given dish_id
+    for dish in menu:
 
-    if user is None:
-        return jsonify({'error': 'User not found'}), 404
+        if dish['dish_id'] == dish_id:
+            # Update the dish properties
+            updated_data = request.get_json()
+            dish['dish_name'] = updated_data.get('dish_name', dish['dish_name'])
+            dish['price'] = updated_data.get('price', dish['price'])
+            dish['stock'] = updated_data.get('stock', dish['stock'])
+            if int(dish["stock"]) <= 0:
+                dish["availability"] = "NO"
+            else:
+                dish["availability"] = "YES"
 
-    # Verify password
-    if user['password'] == password:
-        session['username'] = user['username']
-        return jsonify({'message': 'Login successful'})
-    else:
-        return jsonify({'error': 'Invalid password'}), 401
+    # Save the updated menu data to MongoDB
+    save_menu(menu)
+
+    return jsonify({'message': 'Dish updated successfully'})
 
 
-# Signup route
+# Generate a random alphanumeric string for user IDs
+def generate_user_id(length=6):
+    characters = string.ascii_letters + string.digits
+    return ''.join(random.choice(characters) for _ in range(length))
+
+
 @app.route('/signup', methods=['POST'])
 def signup():
-    name = request.json.get('name')
-    username = request.json.get('username')
-    email = request.json.get('email')
-    password = request.json.get('password')
+    data = request.get_json()
+    username = data['username']
+    password = data['password']
+    role = data["role"]
+    email = data["email"]
 
-    # Check if username or email already exists
-    if find_user_by_username(username) is not None:
+    if not username or not password or not role or not email:
+        return jsonify({'error': 'fill All detials'}), 400
+
+    users = load_users()
+    existing_user = next((user for user in users if user['username'] == username), None)
+    if existing_user:
         return jsonify({'error': 'Username already exists'}), 400
 
-    if find_user_by_email(email) is not None:
-        return jsonify({'error': 'Email already exists'}), 400
-
-    # Create new user
+    user_id = generate_user_id()
     new_user = {
-        '_id': str(len(users) + 1),
-        'name': name,
+        'user_id': user_id,
         'username': username,
-        'email': email,
-        'password': password
+        'password': password,
+        "role": role,
+        "email": email,
     }
+    users.append(new_user)
+    save_users(users)
 
-    # Add new user to user data
-    users_collection.insert_one(new_user)
-    users[new_user['_id']] = new_user
-
-    session['username'] = username
-
-    # Return the response
-    return jsonify({'username': username})
+    return jsonify({'message': 'Signup successful'})
 
 
-def find_user_by_username(username):
-    for user in users.values():
-        if user['username'] == username:
-            return user
-    return None
+@app.route('/login', methods=['POST'])
+def login():
+    data = request.get_json()
+    email = data['email']
+    password = data['password']
+
+    if not email or not password:
+        return jsonify({'error': 'Incomplete login information'}), 400
+
+    users = load_users()
+    user = next((user for user in users if user['email'] == email), None)
+    if not user or user['password'] != password:
+        return jsonify({'error': 'Incorrect email or password'}), 401
+
+    # Perform login logic here
+    print(user)
+    return jsonify({'message': 'Login successful', 'user':{"username":user["username"], "role":user["role"]}})
 
 
-def find_user_by_email(email):
-    for user in users.values():
-        if user['email'] == email:
-            return user
-    return None
+feedbacks_collection = db['feedbacks']
 
 
-# Logout route
-@app.route('/logout', methods=['GET'])
-def logout():
-    if 'username' in session:
-        username = session['username']
-        session.pop('username', None)
-        return jsonify({'message': f'Logged out successfully: {username}'}), 200
-    else:
-        return jsonify({'error': 'No active session'}), 401
+@app.route('/feedback', methods=['POST'])
+def submit_feedback():
+    # Here you would typically implement your feedback submission logic.
+    # For simplicity, we'll assume the user is already authenticated and the feedback is provided in the request body.
+    feedback = request.json.get('feedback')
+    username = request.json.get('username')
+
+    # Save the feedback to MongoDB
+    feedbacks_collection.insert_one({'username': username, 'feedback': feedback})
+
+    return jsonify({'success': True, 'message': 'Feedback submitted successfully!'})
+
+
+@app.route('/api/feedbacks', methods=['GET'])
+def get_feedbacks():
+    # Retrieve all feedbacks from MongoDB
+    feedbacks = list(feedbacks_collection.find())
+    return jsonify({'feedbacks': feedbacks})
+
 
 if __name__ == "__main__":
     app.run()

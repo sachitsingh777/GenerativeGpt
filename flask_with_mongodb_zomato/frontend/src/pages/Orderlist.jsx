@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
-import { Table, Thead, Tbody, Tr, Th, Td, Heading, Box, Container, VStack, Select, Button } from '@chakra-ui/react';
+import { Table, Thead, Tbody, Tr, Th, Td, Heading, Box, Container, VStack } from '@chakra-ui/react';
 
-function Orderdetails() {
+function Orderlist() {
   const [orders, setOrders] = useState([]);
 
   useEffect(() => {
@@ -10,7 +10,7 @@ function Orderdetails() {
 
   async function fetchOrders() {
     try {
-      const response = await fetch('http://localhost:5000/review-orders');
+      const response = await fetch('http://localhost:11000/review-orders');
       const data = await response.json();
       console.log(data);
       setOrders(data.data.orders);
@@ -19,34 +19,6 @@ function Orderdetails() {
     }
   }
 
-  async function updateOrderStatus(orderId, status) {
-    try {
-      const response = await fetch('http://localhost:5000/order/update-status', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          order_id: orderId,
-          status: status,
-        }),
-      });
-
-      const data = await response.json();
-      console.log(data);
-
-      if (response.ok) {
-        // Update the order status in the local state
-        setOrders((prevOrders) =>
-          prevOrders.map((order) =>
-            order.order_id === orderId ? { ...order, status: status } : order
-          )
-        );
-      }
-    } catch (error) {
-      console.log(error);
-    }
-  }
   function getStatusColor(status) {
     switch (status) {
       case 'received':
@@ -79,7 +51,6 @@ function Orderdetails() {
                 <Th color="white">Dish Names</Th>
                 <Th color="white">Total Price</Th>
                 <Th color="white">Status</Th>
-                <Th color="white">Actions</Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -103,17 +74,7 @@ function Orderdetails() {
       </Td>
       <Td>{order.total_price}</Td>
       <Td>{order.status}</Td>
-      <Td>
-        <Select
-          value={order.status}
-          onChange={(e) => updateOrderStatus(order.order_id, e.target.value)}
-        >
-          <option value="received">Received</option>
-          <option value="preparing">Preparing</option>
-          <option value="ready To Pick">Ready for Pickup</option>
-          <option value="delivered">Delivered</option>
-        </Select>
-      </Td>
+      
     </Tr>
   ))}
 </Tbody>
@@ -125,4 +86,4 @@ function Orderdetails() {
   );
 }
 
-export default Orderdetails;
+export default Orderlist;

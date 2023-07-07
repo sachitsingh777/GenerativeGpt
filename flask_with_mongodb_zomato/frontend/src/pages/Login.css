@@ -1,0 +1,42 @@
+.glass-container {
+    position: relative;
+    overflow: hidden;
+    backdrop-filter: blur(8px);
+    border-radius: 8px;
+  }
+  
+  .glass-container h2 {
+    color: #fff;
+  }
+  
+  .glass-container form {
+    margin-top: 16px;
+  }
+  
+  .glass-container form label {
+    color: #fff;
+    font-weight: bold;
+  }
+  
+  .glass-container form input[type='email'],
+  .glass-container form input[type='password'] {
+    background-color: transparent;
+    border: none;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.4);
+    border-radius: 0;
+    color: #fff;
+    padding: 6px 10px;
+    margin-top: 4px;
+    transition: border-color 0.3s ease;
+  }
+  
+  .glass-container form input[type='email']:focus,
+  .glass-container form input[type='password']:focus {
+    outline: none;
+    border-bottom-color: #fff;
+  }
+  
+  .glass-container button {
+    margin-top: 16px;
+  }
+  

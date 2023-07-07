@@ -1,90 +1,122 @@
-import React, { useState } from 'react';
-import axios from 'axios';
-import {
-  Box,
-  Button,
-  FormControl,
-  FormLabel,
-  Input,
-  Stack,
-  Text,
-  Center,
-  Image,
-} from '@chakra-ui/react';
-
-const Login = () => {
-  const [username, setUsername] = useState('');
+import { useState } from 'react';import {  Box,  Button,  FormControl,  FormErrorMessage,  FormLabel,  Heading,  Input,  Text,  useToast,} from '@chakra-ui/react';import { useNavigate } from 'react-router-dom';import './Login.css';const Login = () => {  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
-  const [isLoading, setIsLoading] = useState(false);
+  const toast = useToast();
+  const navigate = useNavigate();
 
-  const handleLogin = async () => {
-    setError('');
-    setIsLoading(true);
-
+  const handleSubmit = async () => {
     try {
-      const response = await axios.post('http://localhost:5000/login', {
-        username: username,
-        password: password,
+      const response = await fetch('http://localhost:5000/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
       });
 
-      // Handle successful login
-      console.log(response.data);
-    } catch (error) {
-      // Handle login error
-      setError('Invalid username or password');
-    }
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error);
+      }
 
-    setIsLoading(false);
+      let data = await response.json();
+      console.log(data);
+
+      // Store user details except password in local storage
+      localStorage.setItem('user', JSON.stringify(data.user));
+
+      toast({
+        title: 'Login Successful',
+        description: 'You have successfully logged in.',
+        status: 'success',
+        duration: 3000,
+        isClosable: true,
+      });
+
+      // Navigate to menu page
+      navigate('/');
+
+      // Perform any additional logic after successful login
+    } catch (err) {
+      setError(err.message);
+      toast({
+        title: 'Login Error',
+        description: err.message,
+        status: 'error',
+        duration: 3000,
+        isClosable: true,
+      });
+      console.log(err);
+    }
   };
 
   return (
-    <Center height="100vh" backgroundColor="gray.100">
+    <Box bg="#3D3B3B" h="100vh" p="20">
+    <Box
+      maxW="sm"
+      mx="auto"
+      // mt={8}
+      p={20}
+      borderWidth={1}
+      borderRadius="lg"
+      position="relative"
+      boxShadow="0 0 8px rgba(0, 0, 0, 0.1)"
+      bg="#7A1B1B" // Light red transparent color
+      backdropFilter="blur(8px)"
+    >
       <Box
-        width="400px"
-        p={6}
-        borderRadius="md"
-        backgroundColor="white"
-        boxShadow="md"
-      >
-        <Center mb={6}>
-          <Image src="zomato-logo.png" alt="Zomato Logo" height="40px" />
-        </Center>
-        <Stack spacing={4}>
-          <FormControl id="username" isRequired>
-            <FormLabel>Username</FormLabel>
-            <Input
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-            />
-          </FormControl>
-
-          <FormControl id="password" isRequired>
-            <FormLabel>Password</FormLabel>
-            <Input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-            />
-          </FormControl>
-
-          {error && <Text color="red.500">{error}</Text>}
-
-          <Button
-            colorScheme="teal"
-            onClick={handleLogin}
-            isLoading={isLoading}
-            width="full"
-          >
-            Login
-          </Button>
-        </Stack>
-      </Box>
-    </Center>
+        position="absolute"
+        top={0}
+        left={0}
+        width="100%"
+        height="100%"
+        // backdropFilter="blur(8px)"
+      />
+      <Heading as="h2" mb={4} textAlign="center" color="white">
+        Login
+      </Heading>
+      <FormControl isInvalid={error}>
+        <FormLabel color="white">Email:</FormLabel>
+        <Input
+          type="email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          bg="white"
+          borderBottom="1px solid rgba(255, 255, 255, 0.4)"
+          borderRadius={0}
+          color="black"
+          _focus={{
+            borderBottomColor: 'crystal.cyan',
+          }}
+        />
+        <FormLabel mt={2} color="white">Password:</FormLabel>
+        <Input
+          type="password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+          bg="white"
+          borderBottom="1px solid rgba(255, 255, 255, 0.4)"
+          borderRadius={0}
+          color="black"
+          _focus={{
+            borderBottomColor: 'crystal.cyan',
+          }}
+        />
+        <FormErrorMessage>{error}</FormErrorMessage>
+        <Button
+          colorScheme="red"
+          mt={4}
+          onClick={handleSubmit}
+          _hover={{
+            bg: 'red.500',
+          }}
+        >
+          Login
+        </Button>
+      </FormControl>
+    </Box>
+    </Box>
   );
 };
 
-
-
-export  default Login
+export default Login;
