@@ -55,5 +55,5 @@ def comment_post(post_id):
         return jsonify({"msg":"comment post"})
     return jsonify({"err":"not found"})  
 
-if __name__==__main__
+if __name__==__main__:
 app.run()
