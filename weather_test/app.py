@@ -20,10 +20,6 @@ def get_weather(city):
         return jsonify({'error': 'City not found'}), 404
 
 
-
-
-
-
 @app.route('/weather', methods=['POST'])
 def add_weather():
     data = request.get_json()
