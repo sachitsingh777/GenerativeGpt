@@ -1,0 +1,8 @@
+<div class="counter-container">
+    <p class="counter-value">{{ count }}</p>
+    <div class="counter-buttons">
+      <button class="counter-button" (click)="increment()">Increment</button>
+      <button class="counter-button" (click)="decrement()"  [disabled]="count === 0">Decrement</button>
+    </div>
+  </div>
+  
